@@ -1,6 +1,6 @@
-# CalendarOmni 0.0.1 implementation plan
+# CalendarOmni 1.0.0 implementation plan
 
-Status: implementation complete for 0.0.1; build, unit, CLI, schema, and read-only
+Status: implementation complete for 1.0.0; build, unit, CLI, schema, and read-only
 live checks completed. Live write tests and additional provider/platform fixtures
 remain unverified. See `VALIDATION.md` for evidence and precise limitations.
 The steps below preserve the implementation scope and acceptance criteria.
@@ -102,7 +102,8 @@ output and update-input schemas, and an LLM operating guide. No runtime framewor
 4. Bulk extraction selects one calendar per invocation.
 5. Creation stays timed and non-recurring in version 1; extraction includes all-day
    events; recurring occurrences require `--include-recurring`.
-6. Apple's Argument Parser is the only added dependency.
+6. Apple's Argument Parser handles CLI parsing. Built-in convenience reports now
+   also use pinned Yams 6.2.2 to preserve the existing YAML config.
 
 7. Public event fields are title, start, end, location, attendees, and notes.
    Extraction defaults to all; `--fields` selects an exact nonempty subset.

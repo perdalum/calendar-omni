@@ -113,7 +113,7 @@ final class CalendarService {
             }
             guard event.calendar.calendarIdentifier == patch.reference.calendarId else { throw OmniError.operation("Calendar changed for '\(id)'; extract again.") }
             guard event.calendar.allowsContentModifications else { throw OmniError.operation("Calendar for '\(id)' is read-only.") }
-            guard !Self.isRecurring(event) else { throw OmniError.operation("Event '\(id)' belongs to a recurring series; updates are not supported in 0.0.1.") }
+            guard !Self.isRecurring(event) else { throw OmniError.operation("Event '\(id)' belongs to a recurring series; updates are not supported in 1.0.0.") }
             let original = try values(event)
             let merged = try patch.merged(with: original, dates: dates)
             prepared.append((event, merged, merged != original))

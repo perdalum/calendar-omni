@@ -172,3 +172,56 @@ final class CalendarOmniTests: XCTestCase {
         XCTAssertTrue(CalendarService.isRecurring(event))
     }
 }
+
+final class ReportTests: XCTestCase {
+    private let dates = DateParsing(zone: TimeZone(identifier: "Europe/Copenhagen")!)
+    private func config(_ style: String = "simple") throws -> ReportConfig {
+        try ReportConfig.parse("calendars: [Ugeplan, 'Komme-gå']\nfields: [title, start, end, notes]\ndatetime_format: \(style)")
+    }
+    private func event(_ title: String, _ start: String, _ end: String) -> EventRecord {
+        EventRecord(reference: EventReference(eventId: nil, calendarId: "a", isRecurring: false, occurrenceDate: nil),
+                    title: title, start: start, end: end, location: nil, attendees: [], notes: "one;\"two\"\nthree")
+    }
+    func testConfig() throws {
+        XCTAssertEqual(try config().calendars, ["Ugeplan", "Komme-gå"])
+        XCTAssertFalse(try ReportConfig.parse("calendars: [A]\nfields: [notes]").simple)
+        for text in ["calendars: [123]\nfields: [title]", "calendars: &a [A]\nfields: *a", "", "calendars: []\nfields: [title]", "calendars: [A,A]\nfields: [title]",
+                     "calendars: [A]\nfields: [title,title]", "calendars: [A]\nfields: [bad]",
+                     "calendars: [A]\nfields: [title]\nunknown: yes", "calendars: [A]\ncalendars: [B]\nfields: [title]",
+                     "calendars: [A]\nfields: [title]\ndatetime_format: short", "calendars: [A]\nfields: [title]\n---\nother: document"] {
+            XCTAssertThrowsError(try ReportConfig.parse(text), text)
+        }
+    }
+    func testCivilReportRanges() throws {
+        for (today, start, end) in [("2026-09-20", "2026-09-07", "2026-09-14"),
+                                    ("2026-09-21", "2026-09-14", "2026-09-21"),
+                                    ("2026-01-01", "2025-12-22", "2025-12-29"),
+                                    ("2026-03-30", "2026-03-23", "2026-03-30"),
+                                    ("2026-10-26", "2026-10-19", "2026-10-26")] {
+            let range = ReportPeriod.lastWeek.range(now: try dates.day(today), dates: dates)
+            XCTAssertEqual(dates.dayString(range.0), start)
+            XCTAssertEqual(dates.dayString(range.1), end)
+        }
+        let tomorrow = ReportPeriod.tomorrow.range(now: try dates.day("2026-12-31"), dates: dates)
+        XCTAssertEqual(dates.dayString(tomorrow.0), "2027-01-01")
+        let spring = ReportPeriod.today.range(now: try dates.day("2026-03-29"), dates: dates)
+        XCTAssertEqual(spring.1.timeIntervalSince(spring.0), 23 * 3600)
+    }
+    func testDailySortingAndFormatting() throws {
+        let records = [event("Late\nline", "2026-09-20T09:00:00Z", "2026-09-20T10:00:00Z"),
+                       event("Early", "2026-09-20T09:30:00+02:00", "2026-09-20T10:30:00+02:00"),
+                       event("Day", "2026-09-20", "2026-09-21")]
+        let data = try ReportPeriod.today.data(records: records, config: config(), dates: dates)
+        XCTAssertEqual(String(decoding: data, as: UTF8.self), "all-day -- all-day : Day\n09:30 -- 10:30 : Early\n11:00 -- 12:00 : Late line\n")
+        XCTAssertEqual(try ReportPeriod.tomorrow.data(records: [], config: config(), dates: dates), Data())
+        let full = try ReportPeriod.today.data(records: [records[1]], config: config("full"), dates: dates)
+        XCTAssertEqual(String(decoding: full, as: UTF8.self), "2026-09-20T09:30:00+02:00 -- 2026-09-20T10:30:00+02:00 : Early\n")
+    }
+    func testWeeklyCSV() throws {
+        let record = event("Møde; title", "2026-01-20T07:30:00Z", "2026-01-20T08:30:00Z")
+        let data = try ReportPeriod.lastWeek.data(records: [record], config: config(), dates: dates)
+        XCTAssertEqual(String(decoding: data, as: UTF8.self), "title;start;end;notes\r\n\"Møde; title\";2026-01-20 08:30;2026-01-20 09:30;\"one;\"\"two\"\"\nthree\"\r\n")
+        let empty = try ReportPeriod.lastWeek.data(records: [], config: config(), dates: dates)
+        XCTAssertEqual(String(decoding: empty, as: UTF8.self), "title;start;end;notes\r\n")
+    }
+}

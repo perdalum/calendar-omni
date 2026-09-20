@@ -8,7 +8,7 @@ extension OutputFormat: ExpressibleByArgument {}
 struct CalendarOmni: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "CalendarOmni", abstract: "Extract, create, and update Apple Calendar events.",
-        version: "0.0.1", subcommands: [ExtractCommand.self, CreateCommand.self, UpdateCommand.self])
+        version: "1.0.0", subcommands: [ExtractCommand.self, CreateCommand.self, UpdateCommand.self, TodayCommand.self, TomorrowCommand.self, LastWeekCommand.self])
 
     static func main() async {
         signal(SIGPIPE, SIG_IGN)

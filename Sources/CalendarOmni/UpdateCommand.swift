@@ -4,7 +4,7 @@ import Darwin
 
 struct UpdateCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "update", abstract: "Update non-recurring events from edited CalendarOmni JSON.")
-    @Option(name: .long, help: "JSON file path, or - for piped stdin.") var input: String
+    @Option(name: .long, help: "JSON file path, or - for piped stdin.", completion: .file()) var input: String
     @Option(name: .long, help: "Output format: json or semicolon csv.") var format: OutputFormat = .json
 
     @MainActor mutating func run() async throws {

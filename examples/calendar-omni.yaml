@@ -1,0 +1,17 @@
+# Copy to ~/.calendar-omni. Calendar names match exactly, including case.
+calendars:
+  - Ugeplan
+  # - "Komme-gå"
+
+# last-week CSV columns, in this order. Daily reports always use FROM -- TO : TITLE.
+fields:
+  - title
+  - start
+  - end
+  - location
+  - attendees
+  - notes
+
+# simple: HH:MM for today/tomorrow; YYYY-MM-DD HH:MM for last-week.
+# full: preserve the original values, including seconds and time-zone offsets.
+datetime_format: simple

@@ -1,15 +1,16 @@
-# CalendarOmni 0.0.1: design and architecture
+# CalendarOmni 1.0.0: design and architecture
 
-Status: implemented as 0.0.1 on 2026-09-20. See `VALIDATION.md` for completed
+Status: implemented as 1.0.0 on 2026-09-20. See `VALIDATION.md` for completed
 checks and live/platform verification still outstanding.
 
 ## Purpose and scope
 
-One personal macOS command-line tool with three commands:
+One personal macOS command-line tool with six commands:
 
 - `CalendarOmni extract`: retrieve many events from one calendar over a date range.
 - `CalendarOmni create`: create one timed event in one calendar.
 - `CalendarOmni update`: update existing non-recurring events from edited JSON.
+- `CalendarOmni today`, `tomorrow`, and `last-week`: reports across configured calendars.
 
 Use the existing Swift scripts as behavioral references: exact calendar selection,
 inclusive extraction dates, title filters, duration input, and notes. Preserve the
@@ -30,8 +31,8 @@ guarantee that remote calendar accounts have finished synchronizing.
 ## Platform and build decision
 
 Use Swift 6 language mode and macOS 14 or later. Use Foundation and EventKit,
-plus Apple's Swift Argument Parser as the sole package dependency. The latter
-removes custom parsing machinery while providing subcommands, validation, and help.
+plus Apple's Swift Argument Parser for subcommands, validation, and help, and
+Yams 6.2.2 for the existing YAML report configuration.
 Argument Parser is pinned to 1.7.2, with the resolved revision checked into the
 Xcode workspace configuration.
 
@@ -486,3 +487,17 @@ and live creation/update still require separate checks.
 - [Apple: occurrenceDate](https://developer.apple.com/documentation/eventkit/ekevent/occurrencedate):
   original occurrence dates are retained for detached exceptions.
 - The installed SDK headers also expose `hasRecurrenceRules` and `isDetached`.
+
+## Built-in convenience reports
+
+`ReportCommands.swift` provides three small commands sharing `--config` (default
+`~/.calendar-omni`). `Report.swift` validates YAML with Yams, calculates local civil
+date ranges, sorts records globally, and renders the daily text or existing CSV
+format. `ReportOptions` authorizes one `CalendarService` and reads all configured
+calendars with recurrence included. It buffers the complete report before writing;
+any calendar failure produces only a stderr diagnostic and a nonzero status.
+
+The default `extract` recurrence policy and JSON schemas are unchanged. Daily
+reports use a fixed start/end/title layout; weekly reports use configured field
+order. Date formatting follows `datetime_format: simple|full`. Existing scripts
+are retained for comparison; the native commands are the main interface.

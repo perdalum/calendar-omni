@@ -1,0 +1,32 @@
+#!/bin/zsh
+# Generate completions from the actual executable, not a separate command list.
+emulate -LR zsh
+set -eu
+
+if [[ ${1:-} == --help ]]; then
+    print 'Usage: scripts/install-zsh-completion [CalendarOmni-binary] [completion-directory]'
+    print 'Defaults: local Release build; ~/.zsh/completion'
+    exit 0
+fi
+if (( $# > 2 )); then
+    print -u2 'Expected at most a binary path and a completion directory.'
+    exit 2
+fi
+readonly project_root=${0:A:h:h}
+readonly binary=${1:-$project_root/build/Build/Products/Release/CalendarOmni}
+readonly destination=${2:-$HOME/.zsh/completion}
+if [[ ! -x $binary ]]; then
+    print -u2 "CalendarOmni executable not found: $binary. Build Release first."
+    exit 2
+fi
+mkdir -p -- "$destination"
+readonly temporary=$(mktemp "$destination/.CalendarOmni.XXXXXX")
+trap 'rm -f -- "$temporary"' EXIT
+"$binary" --generate-completion-script zsh > "$temporary"
+[[ $(head -n 1 "$temporary") == '#compdef CalendarOmni' ]]
+zsh -n "$temporary"
+chmod 644 "$temporary"
+mv -f -- "$temporary" "$destination/_CalendarOmni"
+print "Installed $destination/_CalendarOmni"
+print 'For an existing shell: autoload -Uz compinit; compinit'
+print 'The completion directory must be on fpath before compinit runs.'

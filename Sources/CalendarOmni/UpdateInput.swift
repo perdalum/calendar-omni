@@ -99,7 +99,7 @@ struct UpdateDocument: Sendable {
                 try keys(ref, allowed: ["eventId", "calendarId", "isRecurring", "occurrenceDate"], required: ["eventId", "calendarId", "isRecurring", "occurrenceDate"])
                 let id = try ref["eventId"]!.string(), calID = try ref["calendarId"]!.string()
                 guard !id.isEmpty, !calID.isEmpty else { throw OmniError.input("References must contain nonempty event and calendar IDs.") }
-                guard ref["isRecurring"] == .bool(false), ref["occurrenceDate"] == .null else { throw OmniError.input("Updating recurring events is not supported in 0.0.1.") }
+                guard ref["isRecurring"] == .bool(false), ref["occurrenceDate"] == .null else { throw OmniError.input("Updating recurring events is not supported in 1.0.0.") }
                 guard seen.insert(id).inserted else { throw OmniError.input("Duplicate event ID '\(id)'.") }
                 func text(_ key: String) throws -> Patch<String> {
                     guard let value = object[key] else { return .unchanged }

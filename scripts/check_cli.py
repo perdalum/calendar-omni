@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 binary = str(Path(sys.argv[1] if len(sys.argv) > 1 else 'build/Build/Products/Release/CalendarOmni').resolve())
 checks = 0
@@ -20,9 +21,17 @@ def run(args, expected=0, stdin=None):
     return result
 
 
-assert run(['--version']).stdout.strip() == b'0.0.1'
+assert run(['--version']).stdout.strip() == b'1.0.0'
 for command in [[], ['--help'], ['extract', '--help'], ['create', '--help'], ['update', '--help']]:
     run(command)
+with tempfile.TemporaryDirectory() as directory:
+    config = Path(directory) / 'config with spaces.yaml'
+    for command in ['today', 'tomorrow', 'last-week']:
+        assert b'--config' in run([command, '--help']).stdout
+        run([command, '--config', str(Path(directory) / 'missing')], 2)
+        config.write_text('calendars: []\nfields: [title]\n')
+        run([command, '--config', str(config)], 2)
+        run([command, '--binary', binary], 2)
 assert b'--include-recurring' in run(['extract', '--help']).stdout
 base = ['extract', '--calendar', 'NoAccessNeeded', '--from', '2026-09-01', '--to', '2026-09-30']
 for tail in [['--fields', 'none'], ['--fields', 'title,title'], ['--fields', 'title,'], ['--filter', ''], ['--regex', '['], ['--filter', 'x', '--regex', 'x'], ['--format', 'xml'], ['--time-zone', 'Unknown/Zone'], ['--include-recurring', 'true'], ['--unexpected']]:

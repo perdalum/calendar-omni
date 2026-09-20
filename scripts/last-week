@@ -1,0 +1,4 @@
+#!/usr/bin/ruby
+# frozen_string_literal: true
+require File.join(File.dirname(File.realpath(__FILE__)), 'calendar_omni_helpers')
+exit CalendarOmniHelpers.run('last-week')
