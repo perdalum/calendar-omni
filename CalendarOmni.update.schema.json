@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CalendarOmni update input, version 1",
+  "description": "Edited CalendarOmni output. The origin command never selects the operation. Omitted content fields remain unchanged; null clears location or notes. Live identity, recurrence, writability and attendee equality require application checks.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "timeZone",
+    "fields",
+    "events"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "command": {
+      "enum": [
+        "extract",
+        "create",
+        "update"
+      ]
+    },
+    "timeZone": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Resolved IANA zone for input interpretation and timed output rendering; validate identifier in application code."
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "title",
+          "start",
+          "end",
+          "location",
+          "attendees",
+          "notes"
+        ]
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    }
+  },
+  "$defs": {
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "start": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            },
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+            }
+          ]
+        },
+        "end": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            },
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+            }
+          ]
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attendees": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/attendee"
+          }
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "_ref": {
+          "$ref": "#/$defs/eventRef"
+        }
+      },
+      "required": [
+        "_ref"
+      ],
+      "minProperties": 2
+    },
+    "attendee": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "url"
+      ],
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "EventKit participant URL, usually mailto:, retained without assuming it is an email address."
+        }
+      }
+    },
+    "eventRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "calendarId",
+        "isRecurring",
+        "occurrenceDate"
+      ],
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "calendarId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "isRecurring": {
+          "const": false
+        },
+        "occurrenceDate": {
+          "type": "null"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "isRecurring": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "occurrenceDate": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "fields": {
+            "not": {
+              "contains": {
+                "const": "title"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "items": {
+              "not": {
+                "required": [
+                  "title"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "fields": {
+            "not": {
+              "contains": {
+                "const": "start"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "items": {
+              "not": {
+                "required": [
+                  "start"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "fields": {
+            "not": {
+              "contains": {
+                "const": "end"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "items": {
+              "not": {
+                "required": [
+                  "end"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "fields": {
+            "not": {
+              "contains": {
+                "const": "location"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "items": {
+              "not": {
+                "required": [
+                  "location"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "fields": {
+            "not": {
+              "contains": {
+                "const": "attendees"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "items": {
+              "not": {
+                "required": [
+                  "attendees"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "fields": {
+            "not": {
+              "contains": {
+                "const": "notes"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "items": {
+              "not": {
+                "required": [
+                  "notes"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
