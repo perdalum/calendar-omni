@@ -10,6 +10,7 @@ struct ExtractCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Case-insensitive title regular expression.") var regex: String?
     @Option(name: .long, help: "all or comma-separated title,start,end,location,attendees,notes.") var fields: String = "all"
     @Flag(name: .customLong("include-recurring"), help: "Also include recurring instances and edited series occurrences.") var includeRecurring = false
+    @Flag(name: .customLong("only-meetings"), help: "Only include events with at least one attendee.") var onlyMeetings = false
 
     @MainActor mutating func run() async throws {
         let input = try validateInput { () -> (TimeZone, Date, Date, [EventField], NSRegularExpression?) in
@@ -29,6 +30,7 @@ struct ExtractCommand: AsyncParsableCommand {
             let calendar = try service.calendar(name: options.calendar, id: options.calendarID)
             let records = try service.extract(calendar: calendar, from: input.1, to: input.2,
                 includeRecurring: includeRecurring, filter: filter, regex: input.4)
+                .filter { !onlyMeetings || !$0.attendees.isEmpty }
             try OutputWriter.write(EventOutput(command: "extract", zone: input.0, fields: input.3, records: records), format: options.format)
         }
     }

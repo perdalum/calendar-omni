@@ -1,6 +1,6 @@
-# CalendarOmni 1.0.0: design and architecture
+# CalendarOmni 1.1.0: design and architecture
 
-Status: implemented as 1.0.0 on 2026-09-20. See `VALIDATION.md` for completed
+Status: implemented as 1.1.0 on 2026-09-21. See `VALIDATION.md` for completed
 checks and live/platform verification still outstanding.
 
 ## Purpose and scope
@@ -95,6 +95,9 @@ Options for extraction and creation (`update` options are specified below):
 
 Extraction options:
 
+- Optional boolean flag `--only-meetings`, default off: require at least one
+  attendee before selecting output fields. Combine with the existing title and
+  recurrence filters.
 - Optional boolean flag `--include-recurring` (no space after `--`), default off.
   Without it, exclude both ordinary recurring occurrences and detached/edited
   occurrences. With it, include them alongside non-recurring events in the range.

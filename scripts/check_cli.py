@@ -21,7 +21,7 @@ def run(args, expected=0, stdin=None):
     return result
 
 
-assert run(['--version']).stdout.strip() == b'1.0.0'
+assert run(['--version']).stdout.strip() == b'1.1.0'
 for command in [[], ['--help'], ['extract', '--help'], ['create', '--help'], ['update', '--help']]:
     run(command)
 with tempfile.TemporaryDirectory() as directory:
@@ -32,9 +32,11 @@ with tempfile.TemporaryDirectory() as directory:
         config.write_text('calendars: []\nfields: [title]\n')
         run([command, '--config', str(config)], 2)
         run([command, '--binary', binary], 2)
-assert b'--include-recurring' in run(['extract', '--help']).stdout
+extract_help = run(['extract', '--help']).stdout
+assert b'--include-recurring' in extract_help
+assert b'--only-meetings' in extract_help
 base = ['extract', '--calendar', 'NoAccessNeeded', '--from', '2026-09-01', '--to', '2026-09-30']
-for tail in [['--fields', 'none'], ['--fields', 'title,title'], ['--fields', 'title,'], ['--filter', ''], ['--regex', '['], ['--filter', 'x', '--regex', 'x'], ['--format', 'xml'], ['--time-zone', 'Unknown/Zone'], ['--include-recurring', 'true'], ['--unexpected']]:
+for tail in [['--fields', 'none'], ['--fields', 'title,title'], ['--fields', 'title,'], ['--filter', ''], ['--regex', '['], ['--filter', 'x', '--regex', 'x'], ['--format', 'xml'], ['--time-zone', 'Unknown/Zone'], ['--include-recurring', 'true'], ['--only-meetings', 'true'], ['--unexpected']]:
     run(base + tail, 2)
 run(['extract', '--from', '2026-09-01', '--to', '2026-09-30'], 2)
 run(['extract', '--calendar', 'x', '--from', '2026-09-30', '--to', '2026-09-01'], 2)

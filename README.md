@@ -1,4 +1,4 @@
-# CalendarOmni 1.0.0
+# CalendarOmni 1.1.0
 
 A personal macOS command-line tool for extracting Apple Calendar events, creating
 one event, and updating existing non-recurring events from edited JSON.
@@ -14,7 +14,37 @@ The shared scheme runs `--help` by default; edit its Run arguments to use a comm
 The first build resolves the pinned Swift packages and needs network access.
 No paid Apple developer account is required; the executable is signed locally.
 
-The same project builds from the command line:
+The Makefile wraps the same Xcode project:
+
+```sh
+make                 # Release build
+make debug           # Debug build
+make test            # Swift unit tests and CLI checks; no Calendar access
+make install         # Build and install to ~/bin/CalendarOmni
+make completions     # Install zsh completion separately
+make clean           # Clean Debug/Release products; keep downloaded packages
+make help            # List targets and overrides
+```
+
+Add `$HOME/bin` to your shell's PATH if needed. `make install` installs only the
+executable; it does not change your shell configuration or calendar config.
+Use `make uninstall` to remove the installed executable. The examples below
+assume `CalendarOmni` is on PATH.
+
+The install prefix defaults to your home directory. Override it or the bin
+directory explicitly; quote paths containing spaces:
+
+```sh
+make install PREFIX="$HOME/.local"       # ~/.local/bin/CalendarOmni
+make install BINDIR="/custom/path/bin"    # exact destination directory
+```
+
+`DESTDIR` optionally stages installation ahead of the absolute destination path.
+`COMPLETIONDIR` defaults to `~/.zsh/completion`. `BUILD_DIR` defaults to `build`,
+and `CONFIGURATION` to `Release`. `make check` builds and runs CLI checks only.
+Older Ruby/Wolfram helper tests remain separate, as described in `VALIDATION.md`.
+
+Direct command-line builds remain available:
 
 ```sh
 xcodebuild -project CalendarOmni.xcodeproj -scheme CalendarOmni \
@@ -22,20 +52,11 @@ xcodebuild -project CalendarOmni.xcodeproj -scheme CalendarOmni \
   -clonedSourcePackagesDirPath build/SourcePackages build
 
 ./build/Build/Products/Release/CalendarOmni --version
-./build/Build/Products/Release/CalendarOmni --help
 ```
 
-The version is `1.0.0`. There is one build definition; `swift build` is not supported.
-To install at a stable personal path after building:
-
-```sh
-mkdir -p "$HOME/.local/bin"
-install -m 755 build/Build/Products/Release/CalendarOmni "$HOME/.local/bin/CalendarOmni"
-```
-
-Add `$HOME/.local/bin` to your shell's PATH if needed. The examples below assume
-`CalendarOmni` is on PATH. The tool is unsigned for distribution/not notarized;
-its local build uses ad-hoc signing and embedded Calendar privacy metadata.
+The version is `1.1.0`. Xcode is the single build definition; `swift build` is not
+supported. The local executable uses ad-hoc signing and embedded Calendar privacy
+metadata; it is not notarized for distribution.
 
 ## Zsh completion
 
@@ -182,7 +203,16 @@ CalendarOmni extract --calendar "Ugeplan" \
 
 CalendarOmni extract --calendar "Ugeplan" \
   --from 2026-09-01 --to 2026-09-30 --include-recurring
+
+# Only events with attendees, even when attendees are omitted from the output:
+CalendarOmni extract --calendar "Ugeplan" \
+  --from 2026-09-01 --to 2026-09-30 --only-meetings --fields title,start,end
 ```
+
+`--only-meetings` keeps events with at least one attendee exposed by EventKit.
+It combines with `--filter` or `--regex` and does not require `attendees` in
+`--fields`. Recurring meetings still require `--include-recurring`. Omitting
+this flag preserves normal extraction; daily/weekly reports are unchanged.
 
 - Calendar names match exactly and case-sensitively. Use `--calendar-id ID` instead
   when names are duplicated. Missing/ambiguous selections list names, sources, and
@@ -267,7 +297,7 @@ calendars, and recurring or detached events are rejected. Recurrence is checked
 against the live event, not trusted from JSON. Updates retain the event's existing
 time zone and all-day/timed type, and preserve unexported properties such as alarms.
 Timed values use RFC 3339 timestamps with explicit offsets; all-day values use dates
-and an exclusive end. Type conversion is outside 1.0.0.
+and an exclusive end. Type conversion is outside 1.1.0.
 
 The entire batch is validated before staging changes, followed by a single commit.
 This is not a cross-provider transaction guarantee. A failed commit or failed output
@@ -281,7 +311,7 @@ including unchanged records, in input order.
 JSON is the default. See [output schema](CalendarOmni.schema.json) and
 [update-input schema](CalendarOmni.update.schema.json), both JSON Schema Draft
 2020-12. Version `schemaVersion: 1` describes the data contract; it is distinct from
-the application's `1.0.0` version. JSON includes explicit null values when selected
+the application's `1.1.0` version. JSON includes explicit null values when selected
 optional values are unset, and an empty array for no attendees.
 
 CSV is UTF-8 with semicolon delimiters, CRLF record endings, and proper quoting.

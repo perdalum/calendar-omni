@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 — 2026-09-21
+
+- Add a Makefile for building, testing, installing to `~/bin` by default,
+  uninstalling, cleaning, and installing zsh completions.
+
+- Add `extract --only-meetings` to include only events with at least one attendee,
+  independently of selected output fields and alongside existing filters.
+
 ## 1.0.0 — 2026-09-20
 
 - Add a zsh completion installer using Argument Parser's generated definitions,

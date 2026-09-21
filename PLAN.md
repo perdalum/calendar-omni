@@ -1,6 +1,6 @@
-# CalendarOmni 1.0.0 implementation plan
+# CalendarOmni 1.1.0 implementation plan
 
-Status: implementation complete for 1.0.0; build, unit, CLI, schema, and read-only
+Status: implementation complete for 1.1.0; build, unit, CLI, schema, and read-only
 live checks completed. Live write tests and additional provider/platform fixtures
 remain unverified. See `VALIDATION.md` for evidence and precise limitations.
 The steps below preserve the implementation scope and acceptance criteria.

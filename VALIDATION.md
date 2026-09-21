@@ -202,3 +202,45 @@ python3 Tests/Wolfram/check_cli.py
   15 WSTP CLI checks passed, including byte-for-byte report comparisons.
 - `git diff --check` passed before the release commit. No calendar writes were
   performed during release verification.
+
+## Meeting-only extraction — 2026-09-21
+
+- Added `extract --only-meetings`, filtering mapped records with nonempty
+  attendees before output-field selection. Existing extraction filters remain
+  in effect. No schema changes or calendar writes.
+- Release build succeeded and 46 CLI checks passed, including help and rejection
+  of an explicit value after the boolean flag. Optional Python schema validation
+  was skipped because `jsonschema` was unavailable.
+- 36 read-only comparisons passed across both configured calendars for September
+  2026: default/explicit recurrence inclusion, title substring/regex filters,
+  JSON with all fields or without attendees, and semicolon CSV. Results exactly
+  matched normal extraction filtered to events with attendees. Checks covered
+  empty results as well as 27 non-recurring and 39 recurrence-inclusive matches
+  in the second calendar.
+- Regenerated and installed zsh completion; `--only-meetings` is present.
+
+## Makefile — 2026-09-21
+
+- Added build/all, debug, test, check, install, uninstall, completions, clean, and
+  help targets over the existing Xcode project. Default install is
+  `$HOME/bin/CalendarOmni`; PREFIX, BINDIR, and DESTDIR overrides are supported.
+- `make test` passed: Release build, 46 CLI checks, and 21 Swift tests. Optional
+  JSON Schema checks were skipped because Python `jsonschema` was unavailable.
+- `make install` successfully copied the executable into a temporary bin path
+  containing spaces; that executable reported 1.0.0. `make uninstall` removed it.
+- Dry runs verified default ~/bin installation, PREFIX/DESTDIR staging, completion
+  destination quoting, and both clean commands. No installation in ~/bin or
+  changes to the user's shell/calendar configuration were made for these checks.
+
+## Version 1.1.0 release — 2026-09-21
+
+- Updated CLI version, Xcode Debug/Release marketing versions, embedded
+  Info.plist, current guides, and CLI version assertion to 1.1.0. Changelog
+  records the meeting-only extraction flag and Makefile as this release's changes.
+  Schema version remains 1; earlier release records are preserved.
+- `make test` passed: Release build, 46 CLI checks, and 21 Swift tests.
+  Optional Python JSON Schema validation was skipped because `jsonschema` was
+  unavailable; schema files are unchanged.
+- Verified both the Release executable's `--version` and its embedded
+  `CFBundleShortVersionString` as 1.1.0. `git diff --check` passed.
+- Release verification did not access or modify calendars.
