@@ -244,3 +244,99 @@ python3 Tests/Wolfram/check_cli.py
 - Verified both the Release executable's `--version` and its embedded
   `CFBundleShortVersionString` as 1.1.0. `git diff --check` passed.
 - Release verification did not access or modify calendars.
+
+## Simplified weekly JSON — 2026-09-21
+
+- Native `last-week` now emits a top-level JSON array with exactly title, start,
+  end, location, and attendees. Attendees are nonblank name strings only; missing
+  names are omitted, missing locations are null, and empty reports are []. Full
+  timestamps/date-only boundaries are preserved independently of config formatting.
+- `make test` passed: Release build, 46 CLI checks, and 21 Swift tests. The weekly
+  regression test checks exact keys, Unicode/escaping, chronological sorting,
+  all-day dates, null location, omitted attendee URLs/unnamed entries, empty arrays,
+  and identical output under simple/full config. The fixture config omits location
+  and attendees, verifying that weekly fields are fixed regardless of selection.
+- Live read-only comparison matched all 30 events for the previous Monday–Sunday
+  across configured calendars against normal extraction projected to the new shape.
+  No calendar or user-config writes were performed.
+- Refreshed zsh completion and docs. Legacy Ruby/Wolfram scripts retain CSV.
+  Extract/update schemas are unchanged; the weekly report is a separate format.
+
+## Weekly meeting filter — 2026-09-21
+
+- Added `last-week --only-meetings`, filtering on nonempty EventKit attendee
+  records before projecting attendee names. Events with only unnamed attendees
+  still qualify; daily commands are unchanged.
+- `make check` passed: Release build and 48 CLI checks, including weekly help
+  and rejection of an explicit boolean value. Optional Python schema validation
+  remained skipped because `jsonschema` was unavailable.
+- Live read-only comparison matched all 10 qualifying events from the previous
+  week against normal extraction filtered on attendees. Fixed JSON keys and full
+  timestamps were preserved. No Calendar writes were performed.
+- Updated README/SKILLS and regenerated installed zsh completions.
+
+## Explicit weekly calendar — 2026-09-21
+
+- `last-week` now requires `--calendar NAME` and no longer accepts `--config` or
+  loads ReportConfig. Its fixed JSON renderer takes no config object. Daily
+  reports continue to use the existing YAML configuration.
+- `make test` passed: Release build, 48 CLI checks, and 21 Swift tests. CLI checks
+  cover missing/empty/whitespace calendar names, removal of --config, and the
+  meeting flag. Optional Python schema validation remains unavailable.
+- Four live read-only comparisons passed for two explicitly named calendars,
+  with/without --only-meetings: 12/0 and 18/10 events respectively. Results matched
+  normal extraction projected to weekly JSON. These runs set HOME and
+  CFFIXED_USER_HOME to a temporary directory containing malformed .calendar-omni;
+  weekly output succeeded without reading it. Actual user config was unchanged.
+- Refreshed installed zsh completion and current documentation. No calendar writes.
+
+## Today's attendee names — 2026-09-23
+
+- Native `today` appends a Danish `[med …]` list using the first whitespace-
+  separated part of each available attendee display name. Hyphenated names and
+  duplicate given names are preserved; nil/blank names are omitted. No usable
+  names means no suffix. Tomorrow and weekly formatting are unchanged.
+- `make test` passed: Release build, 48 CLI checks, and 22 Swift tests. Added
+  formatting cases for zero/one/two/three names, missing names, Unicode,
+  whitespace/newlines, hyphenated and duplicate names, simple/full timestamps,
+  and unchanged tomorrow output. Optional Python JSON Schema validation was
+  skipped because `jsonschema` is unavailable.
+- Updated README, SKILLS, design, and changelog. No calendar or user-config writes.
+
+### Today suffix correction — 2026-09-23
+
+The square brackets in the requested example indicated optional content, not
+literal output. Today now appends ` med Anders, Claus og Diba` without brackets.
+Updated existing expectations and docs; `make test` passed (22 Swift tests and
+48 CLI checks), and the Release binary was rebuilt.
+
+## Today self-exclusion and short location — 2026-09-23
+
+- Exclude Per Møldrup-Dalum from today's displayed attendees using full-name,
+  case-insensitive matching with normalized whitespace; other people named Per
+  remain. Extract and weekly data are unchanged.
+- Append a location after an em dash: AU room code if found on the first line,
+  otherwise that line with normalized whitespace and a 40-character limit
+  (including ellipsis). No location means no suffix.
+- `make test` passed: Release build, 48 CLI checks, and 23 Swift tests. Added
+  self-only/mixed/case/whitespace cases and location cases covering room codes,
+  missing values, multiline text, Unicode, truncation, and unchanged tomorrow.
+- Optional Python schema validation was skipped because jsonschema is unavailable.
+  No Calendar or user-config writes were performed.
+
+## Opt-in duration — 2026-09-24
+
+- Added `extract --fields duration` (alone or in a field list). JSON emits a number;
+  CSV emits numeric text without units. Defaults and `--fields all` retain six
+  content fields. Create/update/report layouts are unchanged. Update input rejects
+  duration with a message explaining removal of the calculated field.
+- Output schema updated with optional numeric duration and field-selection
+  presence/absence rules. The update-input schema remains unchanged.
+- `make test` passed: Release build, 49 CLI checks, and 24 Swift tests. Duration
+  cases cover whole/fractional/zero minutes, overnight events, offset changes,
+  all-day/multiday events, spring/fall DST, JSON/CSV encoding, default exclusion,
+  and explicit selection. Optional Python schema validation was skipped because
+  jsonschema is unavailable.
+- Read-only live checks passed for 76 events: numeric duration agrees with elapsed
+  timestamp differences, duration-only JSON/CSV agree, and default/all omit it.
+- Regenerated installed completion help. No calendar or user-config writes.

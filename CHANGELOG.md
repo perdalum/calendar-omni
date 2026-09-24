@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- Add the opt-in extraction field `duration`: elapsed minutes as a number in JSON
+  and CSV, preserving fractions. Defaults and `--fields all` remain unchanged.
+
+- Exclude Per Møldrup-Dalum from today’s attendee display and append a short location.
+
+- Append attendee given names to native `today` reports as `med Anders, Claus og Diba`.
+
+- Require `last-week --calendar NAME`; remove weekly config-file loading and
+  the `--config` option. Weekly JSON fields remain hard-coded.
+
+- Add `last-week --only-meetings`, using the same attendee-presence rule as extract.
+
+- Change native `last-week` from CSV to a simple JSON array with title, start,
+  end, location, and attendee names. Preserve full timestamps regardless of config;
+  daily reports and legacy helper scripts retain their existing output.
+
 ## 1.1.0 — 2026-09-21
 
 - Add a Makefile for building, testing, installing to `~/bin` by default,

@@ -1,9 +1,10 @@
+# Config for native today/tomorrow and legacy scripts; native last-week uses --calendar.
 # Copy to ~/.calendar-omni. Calendar names match exactly, including case.
 calendars:
   - Ugeplan
   # - "Komme-gå"
 
-# last-week CSV columns, in this order. Daily reports always use FROM -- TO : TITLE.
+# Fields for legacy CSV scripts. Native daily/weekly report layouts are fixed.
 fields:
   - title
   - start
@@ -12,6 +13,6 @@ fields:
   - attendees
   - notes
 
-# simple: HH:MM for today/tomorrow; YYYY-MM-DD HH:MM for last-week.
+# simple: HH:MM for today/tomorrow. Native last-week always keeps full timestamps.
 # full: preserve the original values, including seconds and time-zone offsets.
 datetime_format: simple

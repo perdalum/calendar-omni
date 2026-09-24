@@ -87,7 +87,8 @@ struct UpdateDocument: Sendable {
         }
         let zone = try DateParsing.timeZone(root["timeZone"]!.string())
         let selectedNames = try root["fields"]!.array().map { try $0.string() }
-        guard !selectedNames.isEmpty, selectedNames.allSatisfy({ EventField(rawValue: $0) != nil }),
+        guard !selectedNames.contains("duration") else { throw OmniError.input("duration is calculated and extraction-only. Remove it from fields and events before updating.") }
+        guard !selectedNames.isEmpty, selectedNames.allSatisfy({ EventField.contentFields.map(\.rawValue).contains($0) }),
               Set(selectedNames).count == selectedNames.count else { throw OmniError.input("Invalid or duplicate field selection in JSON.") }
         var seen = Set<String>()
         let patches = try root["events"]!.array().enumerated().map { index, value in

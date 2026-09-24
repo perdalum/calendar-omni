@@ -112,7 +112,9 @@ macOS command-line executable; macOS privacy controls still apply.
 
 ## Daily and weekly reports
 
-Three built-in commands share the user-wide YAML file `~/.calendar-omni`:
+`today` and `tomorrow` use the user-wide YAML file `~/.calendar-omni`.
+`last-week` does not read any config file: it requires `--calendar NAME` and
+has hard-coded output fields.
 
 ```yaml
 calendars:
@@ -130,51 +132,80 @@ fields:
 datetime_format: simple
 ```
 
-Use exact calendar names and only calendars you want in the report. Both keys are
-required nonempty lists. `datetime_format` is optional: `simple` or `full`. If
-omitted, it defaults to `full` to preserve existing configurations. Duplicate
-calendars/fields, unknown fields or keys, and
-YAML aliases are rejected. The field order determines the `last-week` CSV columns;
-`today` and `tomorrow` always display start, end, and title. A starter
-file is provided at `examples/calendar-omni.yaml`. Existing configs work unchanged.
+Use exact calendar names and only calendars you want in the report. `calendars`
+and `fields` remain required nonempty lists for compatibility with existing
+configs and legacy scripts. Unknown keys/fields, duplicates, and YAML aliases
+are rejected. Native report layouts are fixed; `fields` does not select their
+output fields. `datetime_format` controls only native daily reports (`full` if
+omitted). A starter file is provided at `examples/calendar-omni.yaml`.
 
 ```sh
 CalendarOmni today > today.txt
 CalendarOmni tomorrow > tomorrow.txt
-CalendarOmni last-week > last-week.csv
+CalendarOmni last-week --calendar "Kalender" > last-week.json
+CalendarOmni last-week --calendar "Kalender" --only-meetings > meetings.json
 ```
 
-- `today` uses today's local civil date; `tomorrow` uses the next civil date.
-  Each prints one line per event: `FROM -- TO : TITLE`, with no header. For example,
-  `09:00 -- 10:30 : Skriv rapport`. Line breaks in titles become spaces. The configured
-  `fields` list does not change this fixed daily layout.
-- `last-week` uses the **previous complete Monday–Sunday week**, not the last seven
-  days or the current week. For example, on Sunday 2026-09-20 it reports September
-  7–13; on Monday 2026-09-21 it reports September 14–20.
-- All configured calendars are combined into one report, globally sorted by actual
-  start instant, then end instant. `last-week` remains **semicolon CSV with one header**. Ties retain configured
-  calendar order and the original event order. All-day events sort at local midnight
-  on their start date. Events overlapping the range retain their original dates.
-- These reports always include recurring events: “all events” includes recurring
-  appointments and detached exceptions. The base `extract` default remains unchanged.
-- Daily reports display title, start, and end. Weekly reports use start/end for
-  sorting even if omitted from the configured columns.
-  No extra calendar-name column or identity metadata is added to the CSV. Distinct
-  entries from different calendars are preserved; there is no cross-calendar deduplication.
-- `datetime_format: simple` renders timed start/end values in local time:
-  `HH:MM` for `today`/`tomorrow`, and `YYYY-MM-DD HH:MM` for `last-week`.
-  Seconds, fractions, and time-zone suffixes are omitted. All-day values show
-  `all-day` in daily reports and their original date-only values in weekly reports.
-- `datetime_format: full` preserves the exact original date/timestamp strings,
-  including offsets and fractional seconds. It also retains dates in daily reports.
-  Use it when inspecting overnight/multi-day boundaries hidden by simple daily output.
-- Formatting happens after sorting; the original full instants always determine order.
-- Every extraction must succeed before output is emitted. A calendar failure produces
-  stderr and a nonzero exit status, not a partial report. Empty daily reports print
-  nothing; an empty weekly report emits its CSV header.
-  Shell redirection itself can still create/truncate the destination file on failure.
+- `today` and `tomorrow` print one `FROM -- TO : TITLE` line per event, without a
+  header. Multiline titles are flattened. Empty days print nothing. With
+  `datetime_format: simple`, times use local `HH:MM` and all-day values show
+  `all-day`; `full` preserves the original timestamp/date strings.
+- `today` appends an attendee suffix when names are available, for example:
+  `10:00 -- 10:45 : Ethics questions med Anders, Claus og Diba`.
+  Given names are approximated by the first word of each attendee display name;
+  hyphenated names are preserved. Missing/blank names are skipped, and identical
+  given names are retained for distinct attendees. No usable names means no suffix.
+  This applies to both simple and full date styles; `tomorrow` keeps its existing layout.
+- For native `today`, omit the attendee `Per Møldrup-Dalum` before extracting given
+  names (case-insensitive, ignoring extra whitespace). Other people named Per are
+  kept. Append a short location after the attendee list, separated by ` — `:
+  `10:00 -- 10:45 : Ethics questions med Diba — 3210-05.071`.
+  Use an AU building-floor.room code when present on the first location line;
+  otherwise use that line with normalized whitespace, capped at 40 characters with
+  an ellipsis. Missing locations add nothing. This affects only today's display;
+  extract/weekly JSON retain their full location and attendee data.
 
-Each report accepts `--config PATH` and `--help`:
+- `last-week` uses the **previous complete Monday–Sunday week**, not a rolling
+  seven days. On Monday 2026-09-21 it reports September 14–20. Supply one exact,
+  case-sensitive calendar name with `--calendar`; missing, empty, unknown, or
+  ambiguous names fail. There is no `--config` option or config-file fallback.
+- Add `last-week --only-meetings` to keep events with at least one attendee.
+  This checks EventKit attendees before projecting names, so an event with only
+  unnamed attendees still qualifies and may show an empty names array. Recurring
+  meetings are included automatically, like other weekly events.
+- Weekly output is a **top-level JSON array**, with exactly `attendees`,
+  `location`, `end`, `start`, and `title` per event. Attendees are an array of
+  names, with unnamed/blank-name entries omitted. No attendees produces `[]`;
+  a missing location is `null`. No events produces `[]`.
+- Weekly start/end values retain full timestamps with offsets, regardless of
+  `datetime_format`. All-day events retain date-only values with an exclusive
+  end date. The weekly layout is hard-coded, includes no notes or
+  identifiers, and cannot be used as update input. It is separate from the
+  extract/update JSON envelope and schemas.
+- Daily reports combine configured calendars; weekly reports use only the named
+  calendar. Events are sorted by start instant, then end instant. Ties retain
+  original event order (and configured calendar order for daily reports). All-day events
+  sort at local midnight. Overlapping events retain their original boundaries.
+- Recurring events and detached exceptions are included. The base `extract`
+  default is unchanged. Distinct events from different calendars are preserved.
+- Every extraction must succeed before output is emitted. Failures produce
+  stderr and a nonzero status without a partial report.
+
+Example weekly output:
+
+```json
+[
+  {
+    "attendees": ["Anders Falkenhard Røn", "Claus Aschou Johannesen", "Diba Terese Markus"],
+    "location": "3210-05.071 Mødelokal (20) AU Forskning (20)",
+    "end": "2026-09-18T11:00:00+02:00",
+    "start": "2026-09-18T09:00:00+02:00",
+    "title": "Møde i data management koordinationsgruppen"
+  }
+]
+```
+
+Daily reports accept `--config PATH`. All reports accept `--help`:
 
 ```sh
 CalendarOmni today --config examples/calendar-omni.yaml
@@ -182,12 +213,14 @@ CalendarOmni last-week --help
 ```
 
 Relative config paths resolve from your shell's working directory. All reports
-use this Mac's local time zone. CalendarOmni authorizes once, reads each configured
-calendar directly through EventKit, and reuses its CSV formatter. There is no
+use this Mac's local time zone. CalendarOmni authorizes once, reads the selected
+calendar(s) directly through EventKit, and formats the report in Swift. There is no
 subprocess, JSON round trip, or scripting runtime requirement.
 
-The earlier Ruby and Wolfram scripts remain available for comparison, but the
-built-in commands are the recommended interface. Their `--binary` / `binary=...`
+The earlier Ruby and Wolfram scripts remain available with their original weekly
+CSV output and config-based calendar selection; native `last-week` uses JSON
+and an explicit `--calendar` argument. The built-in commands are the
+recommended interface. Their `--binary` / `binary=...`
 overrides are unnecessary for the built-in commands. Report tests are part of the
 Xcode test suite below.
 
@@ -225,13 +258,32 @@ this flag preserves normal extraction; daily/weekly reports are unchanged.
 - `--filter TEXT` matches titles without case or diacritic sensitivity. Alternatively,
   `--regex PATTERN` uses a case-insensitive regular expression. They are exclusive.
 - `--fields` accepts `all` (default) or an exact nonempty comma-separated selection
-  from `title,start,end,location,attendees,notes`. CSV follows that order.
+  from `title,start,end,location,attendees,notes,duration`. CSV follows that order.
 - `--time-zone Europe/Copenhagen` overrides the Mac's zone for dates and rendering.
 - Long intervals are fetched in windows of at most one year to avoid EventKit's
   four-year predicate limit. Repeated window results are deduplicated by identity
   and occurrence dates, not title.
 - Results reflect the local EventKit store. They do not prove remote accounts have
   completed synchronization.
+
+### Calculated duration
+
+Request `duration` explicitly with extraction fields:
+
+```sh
+CalendarOmni extract --calendar "Kalender" --from 2026-09-01 --to 2026-09-30 \
+  --fields title,start,end,duration --format csv
+```
+
+`duration` is `(end - start)` in elapsed minutes, with no unit suffix: JSON uses a
+number and CSV a plain numeric cell (`45`, `90`, `1.5`). Fractional minutes are
+preserved. It can be selected alone or alongside any content fields. Defaults
+and `--fields all` retain the original six fields and omit duration.
+For all-day events, boundaries are midnight in the selected output time zone;
+DST transition days can be 1380 or 1500 minutes. This is an extraction-only,
+read-only value: remove `duration` from the JSON field list and event objects
+before using extracted JSON for updates. Create/update and report output are
+unchanged. The extraction JSON schema includes this optional numeric field.
 
 ## Create one event
 

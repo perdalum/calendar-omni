@@ -39,7 +39,7 @@ struct ReportConfig {
             }
             let calendars = try strings("calendars"), names = try strings("fields")
             let fields = names.compactMap(EventField.init(rawValue:))
-            guard fields.count == names.count else { throw OmniError.input("Unknown field in config.") }
+            guard fields.count == names.count, fields.allSatisfy({ EventField.contentFields.contains($0) }) else { throw OmniError.input("Unknown field in config.") }
             let style = values["datetime_format"]?.string ?? (values["datetime_format"] == nil ? "full" : "")
             guard (values["datetime_format"] == nil || values["datetime_format"]?.tag == Tag(.str)), ["simple", "full"].contains(style) else { throw OmniError.input("datetime_format must be simple or full.") }
             return Self(calendars: calendars, fields: fields, simple: style == "simple")
@@ -50,6 +50,16 @@ struct ReportConfig {
 
 enum ReportPeriod {
     case today, tomorrow, lastWeek
+
+    static func shortLocation(_ location: String?) -> String {
+        guard let line = location?.split(whereSeparator: { $0.isNewline }).first else { return "" }
+        let text = line.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        // AU room descriptions commonly begin with a building-floor.room code.
+        if let room = text.range(of: #"\b\d{4}-\d{2}\.\d{3}\b"#, options: .regularExpression) {
+            return String(text[room])
+        }
+        return text.count > 40 ? String(text.prefix(39)) + "…" : text
+    }
 
     func range(now: Date, dates: DateParsing) -> (Date, Date) {
         let calendar = dates.calendar
@@ -64,7 +74,7 @@ enum ReportPeriod {
         return (start, calendar.date(byAdding: .day, value: self == .lastWeek ? 7 : 1, to: start)!)
     }
 
-    func data(records: [EventRecord], config: ReportConfig, dates: DateParsing) throws -> Data {
+    func data(records: [EventRecord], simple: Bool = false, dates: DateParsing) throws -> Data {
         func instant(_ text: String) throws -> Date {
             try text.count == 10 ? dates.day(text) : DateParsing.timestamp(text)
         }
@@ -72,26 +82,44 @@ enum ReportPeriod {
             (try instant(record.start), try instant(record.end), index, record)
         }
         let ordered = keyed.sorted { ($0.0, $0.1, $0.2) < ($1.0, $1.1, $1.2) }.map { $0.3 }
+        if self == .lastWeek {
+            let events: [[String: Any]] = ordered.map {
+                ["title": $0.title, "start": $0.start, "end": $0.end,
+                 "location": $0.location as Any? ?? NSNull(),
+                 "attendees": $0.attendees.compactMap { attendee in
+                     attendee.name.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+                 }]
+            }
+            var data = try JSONSerialization.data(withJSONObject: events,
+                options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+            data.append(10)
+            return data
+        }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = dates.calendar
         formatter.timeZone = dates.zone
-        formatter.dateFormat = self == .lastWeek ? "yyyy-MM-dd HH:mm" : "HH:mm"
+        formatter.dateFormat = "HH:mm"
         func display(_ text: String) throws -> String {
-            guard config.simple else { return text }
-            if text.count == 10 { return self == .lastWeek ? text : "all-day" }
+            guard simple else { return text }
+            if text.count == 10 { return "all-day" }
             return try formatter.string(from: instant(text))
         }
-        if self != .lastWeek {
-            return Data(try ordered.map {
-                let title = $0.title.replacingOccurrences(of: #"[\r\n\x{0085}\x{2028}\x{2029}]+"#, with: " ", options: .regularExpression)
-                return try "\(display($0.start)) -- \(display($0.end)) : \(title)\n"
-            }.joined().utf8)
-        }
-        let formatted = try ordered.map {
-            EventRecord(reference: $0.reference, title: $0.title, start: try display($0.start), end: try display($0.end),
-                        location: $0.location, attendees: $0.attendees, notes: $0.notes)
-        }
-        return try OutputWriter.data(EventOutput(command: "extract", zone: dates.zone, fields: config.fields, records: formatted), format: .csv)
+        return Data(try ordered.map {
+            let title = $0.title.replacingOccurrences(of: #"[\r\n\x{0085}\x{2028}\x{2029}]+"#, with: " ", options: .regularExpression)
+            // EventKit gives display names, not structured given names. Use the
+            // first whitespace-separated part, preserving hyphenated names.
+            let names: [String] = self == .today ? $0.attendees.compactMap {
+                guard let name = $0.name else { return nil }
+                let parts = name.split(whereSeparator: { $0.isWhitespace })
+                guard parts.joined(separator: " ").caseInsensitiveCompare("Per Møldrup-Dalum") != .orderedSame else { return nil }
+                return parts.first.map(String.init)
+            } : []
+            let list = names.count > 1 ? names.dropLast().joined(separator: ", ") + " og " + names.last! : names.joined()
+            let suffix = list.isEmpty ? "" : " med \(list)"
+            let location = self == .today ? Self.shortLocation($0.location) : ""
+            let place = location.isEmpty ? "" : " — \(location)"
+            return try "\(display($0.start)) -- \(display($0.end)) : \(title)\(suffix)\(place)\n"
+        }.joined().utf8)
     }
 }

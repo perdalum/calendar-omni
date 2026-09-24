@@ -26,6 +26,7 @@ enum OutputWriter {
                 case .end: r.end
                 case .location: r.location ?? ""
                 case .notes: r.notes ?? ""
+                case .duration: String(decoding: try encoder.encode(r.duration(in: event.zone)), as: UTF8.self)
                 case .attendees: String(decoding: try encoder.encode(r.attendees), as: UTF8.self)
                 }
             }

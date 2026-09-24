@@ -8,7 +8,7 @@ struct ExtractCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Last date, inclusive: YYYY-MM-DD.") var to: String
     @Option(name: .long, help: "Case- and diacritic-insensitive title substring.") var filter: String?
     @Option(name: .long, help: "Case-insensitive title regular expression.") var regex: String?
-    @Option(name: .long, help: "all or comma-separated title,start,end,location,attendees,notes.") var fields: String = "all"
+    @Option(name: .long, help: "all (six content fields) or comma-separated title,start,end,location,attendees,notes,duration. Duration is opt-in elapsed minutes.") var fields: String = "all"
     @Flag(name: .customLong("include-recurring"), help: "Also include recurring instances and edited series occurrences.") var includeRecurring = false
     @Flag(name: .customLong("only-meetings"), help: "Only include events with at least one attendee.") var onlyMeetings = false
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "CalendarOmni successful output, version 1",
-  "description": "Output contract for extract, create and update: six selectable content fields plus fixed _ref metadata. Errors use stderr and nonzero exit codes.",
+  "description": "Output contract for extract, create and update: six content fields plus opt-in calculated duration for extraction and fixed _ref metadata. Errors use stderr and nonzero exit codes.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -30,7 +30,7 @@
     "fields": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 6,
+      "maxItems": 7,
       "uniqueItems": true,
       "items": {
         "enum": [
@@ -39,7 +39,8 @@
           "end",
           "location",
           "attendees",
-          "notes"
+          "notes",
+          "duration"
         ]
       }
     },
@@ -106,6 +107,10 @@
         },
         "_ref": {
           "$ref": "#/$defs/eventRef"
+        },
+        "duration": {
+          "type": "number",
+          "description": "Elapsed (end - start) in minutes, without units. Fractional minutes are preserved. All-day dates use midnight in the output timeZone; DST days may differ from 1440 minutes."
         }
       },
       "required": [
@@ -478,6 +483,41 @@
                     }
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "fields": {
+            "contains": {
+              "const": "duration"
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "items": {
+              "required": [
+                "duration"
+              ]
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "events": {
+            "items": {
+              "not": {
+                "required": [
+                  "duration"
+                ]
               }
             }
           }

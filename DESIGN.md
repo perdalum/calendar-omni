@@ -106,7 +106,9 @@ Extraction options:
   `--regex PATTERN` (case-insensitive title regex), mutually exclusive.
 - Reject empty filters, invalid regular expressions, and reversed date ranges.
 - Optional `--fields all|FIELD,FIELD,...`, default `all`. Select from `title`, `start`,
-  `end`, `location`, `attendees`, `notes`. A list replaces the default selection;
+  `end`, `location`, `attendees`, `notes`, and calculated `duration` (elapsed minutes).
+  Duration is opt-in: defaults and `all` still mean the six content fields.
+  A list replaces the default selection;
   emit exactly those content fields, in the supplied order for CSV. JSON always
   also includes `_ref` identity metadata; it is not part of `--fields`.
 - Reject an empty list, `none`, duplicate/unknown field names, or mixing `all` with
@@ -493,14 +495,28 @@ and live creation/update still require separate checks.
 
 ## Built-in convenience reports
 
-`ReportCommands.swift` provides three small commands sharing `--config` (default
-`~/.calendar-omni`). `Report.swift` validates YAML with Yams, calculates local civil
-date ranges, sorts records globally, and renders the daily text or existing CSV
-format. `ReportOptions` authorizes one `CalendarService` and reads all configured
+`ReportCommands.swift` provides config-based daily commands (`--config`, default
+`~/.calendar-omni`) and a weekly command requiring `--calendar NAME`. The weekly
+command does not load configuration. `Report.swift` validates YAML with Yams, calculates local civil
+date ranges, sorts records globally, and renders daily text or a simple weekly JSON
+array. `ReportOptions` authorizes one `CalendarService` and reads all configured
 calendars with recurrence included. It buffers the complete report before writing;
 any calendar failure produces only a stderr diagnostic and a nonzero status.
+`LastWeekCommand` selects one explicitly named calendar and uses the shared date
+range/JSON rendering without constructing or reading a ReportConfig.
 
 The default `extract` recurrence policy and JSON schemas are unchanged. Daily
-reports use a fixed start/end/title layout; weekly reports use configured field
-order. Date formatting follows `datetime_format: simple|full`. Existing scripts
-are retained for comparison; the native commands are the main interface.
+reports use a fixed start/end/title layout, with `today` appending available
+attendee first names in a Danish `med …` list; weekly reports have fixed title, start, end,
+location, and attendee-name fields. Weekly timestamps always retain full values;
+`datetime_format: simple|full` applies to daily reports. Legacy scripts retain
+weekly CSV; the native commands are the main interface.
+
+### Calculated extraction duration
+
+`duration` is an extraction-only numeric field, calculated from the two boundaries
+in elapsed minutes. Date-only values use local midnight in the output time zone;
+fractional minutes and DST differences are preserved. SelectedEvent carries that
+zone for consistent JSON/CSV calculation, and both encoders omit the field unless
+selected. The default/create/update fields remain the six content fields. Update
+input rejects duration with instructions to remove the derived field first.

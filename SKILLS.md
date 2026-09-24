@@ -41,41 +41,67 @@ CalendarOmni extract --calendar "Ugeplan" \
 
 For attendee-bearing events, add `extract --only-meetings`. It requires at least
 one attendee in EventKit, regardless of `--fields`. Combine with title filters as
-needed; recurring meetings still require `--include-recurring`. This flag does
-not change the daily/weekly report commands.
+needed; recurring meetings still require `--include-recurring`. The flag is also supported by `last-week`; daily report commands are unchanged.
+
+For extraction, `--fields title,duration` adds elapsed minutes as a number without
+units. Fractional minutes are preserved. Defaults and `--fields all` omit this
+calculated field: request `duration` explicitly. All-day durations use local
+midnight boundaries in the output time zone, including DST. It is extraction-only;
+remove duration from both fields and events before submitting JSON to update.
 
 ## Convenience reports from the user config
 
-For the user's configured calendar set, prefer these built-in read-only report commands:
+Use these built-in read-only report commands:
 
 ```sh
 CalendarOmni today
 CalendarOmni tomorrow
-CalendarOmni last-week
+CalendarOmni last-week --calendar "Kalender"
 ```
 
-They read `~/.calendar-omni` YAML with `calendars` (exact names) and `fields` (ordered
-subset of the six content fields), with optional `datetime_format: simple|full`.
-Simple means local `HH:MM` for today/tomorrow and `YYYY-MM-DD HH:MM` for last-week;
-all-day entries use `all-day` in daily reports and dates in weekly reports. Full
-preserves the original timestamp/date strings; it is the default when the option
-is omitted. Sorting always uses full instants, before display formatting.
-They combine all calendars chronologically. `today` and `tomorrow` print one
-`FROM -- TO : TITLE` line per event, without a header; empty days print nothing.
-Daily reports always display title, start, and end, regardless of `fields`.
-Multiline titles are flattened to one line. `last-week` remains semicolon CSV with
-configured columns and a header, including when empty. **Recurring events are included** by these commands. `last-week` is
-the previous complete Monday–Sunday week in local time, not a rolling seven days.
-A failed calendar makes the whole command fail without a partial report.
+Only `today` and `tomorrow` read `~/.calendar-omni` YAML with exact `calendars` names and the existing
+`fields` list. Both lists are still validated, but native report layouts are fixed.
+`datetime_format: simple|full` controls daily reports only (default full).
 
-Use `--config PATH` if needed; relative paths resolve from the calling shell's
-working directory. These commands use local time, authorize once, and access
-EventKit directly. No Ruby or Wolfram runtime is needed. Do not silently add
-calendars or rewrite the user's config. Follow configured column order for weekly
-CSV; reports omit `_ref` and are not suitable as update input. Describe only the
-configured calendars. Check exit status before interpreting output; diagnostics
-use stderr and failures emit no partial report. The older Ruby/Wolfram scripts
-remain available, but prefer these built-in commands for new workflows.
+`today` and `tomorrow` print `FROM -- TO : TITLE`, with no header. Simple uses
+local HH:MM or `all-day`; full preserves source timestamps/dates. Multiline titles
+are flattened and empty days print nothing. `today` additionally appends
+` med Anders, Claus og Diba` when attendee names are available. Use the first
+whitespace-separated part of each display name as the given-name approximation;
+missing/blank names are skipped, hyphenated names and duplicate given names are
+preserved. `tomorrow` does not append attendees.
+
+For native `today`, omit the attendee `Per Møldrup-Dalum` before extracting given
+names (case-insensitive, ignoring extra whitespace). Other people named Per are
+kept. Append a short location after the attendee list, separated by ` — `:
+`10:00 -- 10:45 : Ethics questions med Diba — 3210-05.071`.
+Use an AU building-floor.room code when present on the first location line;
+otherwise use that line with normalized whitespace, capped at 40 characters with
+an ellipsis. Missing locations add nothing. This affects only today's display;
+extract/weekly JSON retain their full location and attendee data.
+
+`last-week --only-meetings` filters to events with at least one EventKit attendee
+before names are projected; unnamed attendees still qualify. Recurring meetings
+remain included. Omitting the flag includes all weekly events.
+
+`last-week` requires one nonempty `--calendar NAME` (exact, case-sensitive). It
+does not read `~/.calendar-omni` or accept `--config`; never infer a default from
+the file. Unknown/ambiguous calendar names fail. Its five fields are hard-coded.
+
+`last-week` reports the previous complete Monday–Sunday week as a top-level JSON
+array, sorted by start then end. Each object has exactly attendees (array of name
+strings), location (string or null), start, end, and title. Unnamed/blank-name
+attendees are omitted; empty attendee lists and empty reports are `[]`. Timestamps
+always retain full values and offsets, irrespective of `datetime_format` or
+`fields`; all-day dates retain an exclusive end. There is no envelope, `_ref`, or
+notes. This report is not update input and does not follow the extraction schema.
+
+All three reports include recurring events, authorize once, and access EventKit
+directly. For daily reports only, use `--config PATH` to override the config; relative paths resolve from
+the shell's working directory. Do not add calendars or rewrite user config.
+Describe only the requested calendar (weekly) or configured calendars (daily). Check exit status before consuming output;
+diagnostics use stderr and failures emit no partial report. Legacy Ruby/Wolfram
+scripts retain their weekly CSV format; prefer the native commands.
 
 ## Create
 

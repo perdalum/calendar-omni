@@ -26,17 +26,26 @@ for command in [[], ['--help'], ['extract', '--help'], ['create', '--help'], ['u
     run(command)
 with tempfile.TemporaryDirectory() as directory:
     config = Path(directory) / 'config with spaces.yaml'
-    for command in ['today', 'tomorrow', 'last-week']:
+    for command in ['today', 'tomorrow']:
         assert b'--config' in run([command, '--help']).stdout
         run([command, '--config', str(Path(directory) / 'missing')], 2)
         config.write_text('calendars: []\nfields: [title]\n')
         run([command, '--config', str(config)], 2)
         run([command, '--binary', binary], 2)
+weekly_help = run(['last-week', '--help']).stdout
+assert b'--only-meetings' in weekly_help and b'--calendar' in weekly_help
+assert b'--config' not in weekly_help
+run(['last-week'], 2)
+run(['last-week', '--calendar', ''], 2)
+run(['last-week', '--calendar', '   '], 2)
+run(['last-week', '--calendar', 'NoAccessNeeded', '--config', '/missing'], 2)
+run(['last-week', '--calendar', 'NoAccessNeeded', '--only-meetings', 'true'], 2)
 extract_help = run(['extract', '--help']).stdout
 assert b'--include-recurring' in extract_help
 assert b'--only-meetings' in extract_help
+assert b'duration' in extract_help
 base = ['extract', '--calendar', 'NoAccessNeeded', '--from', '2026-09-01', '--to', '2026-09-30']
-for tail in [['--fields', 'none'], ['--fields', 'title,title'], ['--fields', 'title,'], ['--filter', ''], ['--regex', '['], ['--filter', 'x', '--regex', 'x'], ['--format', 'xml'], ['--time-zone', 'Unknown/Zone'], ['--include-recurring', 'true'], ['--only-meetings', 'true'], ['--unexpected']]:
+for tail in [['--fields', 'none'], ['--fields', 'duration,duration'], ['--fields', 'title,title'], ['--fields', 'title,'], ['--filter', ''], ['--regex', '['], ['--filter', 'x', '--regex', 'x'], ['--format', 'xml'], ['--time-zone', 'Unknown/Zone'], ['--include-recurring', 'true'], ['--only-meetings', 'true'], ['--unexpected']]:
     run(base + tail, 2)
 run(['extract', '--from', '2026-09-01', '--to', '2026-09-30'], 2)
 run(['extract', '--calendar', 'x', '--from', '2026-09-30', '--to', '2026-09-01'], 2)

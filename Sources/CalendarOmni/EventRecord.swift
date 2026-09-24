@@ -1,14 +1,16 @@
 import Foundation
 
 enum EventField: String, CaseIterable, Codable, Sendable {
-    case title, start, end, location, attendees, notes
+    case title, start, end, location, attendees, notes, duration
+
+    static let contentFields: [EventField] = [.title, .start, .end, .location, .attendees, .notes]
 
     static func selection(_ text: String) throws -> [EventField] {
-        if text == "all" { return allCases }
+        if text == "all" { return contentFields }
         let names = text.split(separator: ",", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
         let fields = names.compactMap(Self.init(rawValue:))
         guard !fields.isEmpty, fields.count == names.count, Set(fields).count == fields.count else {
-            throw OmniError.input("--fields must be 'all' or unique names from title,start,end,location,attendees,notes.")
+            throw OmniError.input("--fields must be 'all' or unique names from title,start,end,location,attendees,notes,duration.")
         }
         return fields
     }
@@ -51,12 +53,20 @@ struct EventRecord: Sendable {
     let location: String?
     let attendees: [Attendee]
     let notes: String?
+
+    func duration(in zone: TimeZone) throws -> Double {
+        let dates = DateParsing(zone: zone)
+        let first = try start.count == 10 ? dates.day(start) : DateParsing.timestamp(start)
+        let last = try end.count == 10 ? dates.day(end) : DateParsing.timestamp(end)
+        return last.timeIntervalSince(first) / 60
+    }
 }
 
 struct SelectedEvent: Encodable {
     let record: EventRecord
     let fields: [EventField]
-    enum CodingKeys: String, CodingKey { case _ref, title, start, end, location, attendees, notes }
+    let zone: TimeZone
+    enum CodingKeys: String, CodingKey { case _ref, title, start, end, location, attendees, notes, duration }
     func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(record.reference, forKey: ._ref)
@@ -68,6 +78,7 @@ struct SelectedEvent: Encodable {
             case .location: try c.encode(record.location, forKey: .location)
             case .attendees: try c.encode(record.attendees, forKey: .attendees)
             case .notes: try c.encode(record.notes, forKey: .notes)
+            case .duration: try c.encode(record.duration(in: zone), forKey: .duration)
             }
         }
     }
@@ -80,8 +91,8 @@ struct EventOutput: Encodable {
     let fields: [EventField]
     let events: [SelectedEvent]
 
-    init(command: String, zone: TimeZone, fields: [EventField] = EventField.allCases, records: [EventRecord]) {
+    init(command: String, zone: TimeZone, fields: [EventField] = EventField.contentFields, records: [EventRecord]) {
         self.command = command; timeZone = zone.identifier; self.fields = fields
-        events = records.map { SelectedEvent(record: $0, fields: fields) }
+        events = records.map { SelectedEvent(record: $0, fields: fields, zone: zone) }
     }
 }

@@ -9,7 +9,7 @@ final class CalendarOmniTests: XCTestCase {
         EventRecord(reference: ref, title: "Møde; \"rapport\"", start: "2026-09-21T09:00:00+02:00", end: "2026-09-21T10:00:00+02:00", location: nil,
                     attendees: [Attendee(name: nil, url: "mailto:person@example.org")], notes: "First line\nSecond line")
     }
-    private func input(_ records: [[String: Any]], fields: [String] = EventField.allCases.map(\.rawValue)) throws -> UpdateDocument {
+    private func input(_ records: [[String: Any]], fields: [String] = EventField.contentFields.map(\.rawValue)) throws -> UpdateDocument {
         try UpdateDocument.parse(JSONSerialization.data(withJSONObject: ["schemaVersion": 1, "command": "extract", "timeZone": "Europe/Copenhagen", "fields": fields, "events": records]))
     }
     private var referenceObject: [String: Any] {
@@ -74,7 +74,7 @@ final class CalendarOmniTests: XCTestCase {
 
     func testFieldSelection() throws {
         XCTAssertEqual(try EventField.selection("notes, title"), [.notes, .title])
-        XCTAssertEqual(try EventField.selection("all"), EventField.allCases)
+        XCTAssertEqual(try EventField.selection("all"), EventField.contentFields)
         for invalid in ["none", "", "title,title", "all,title", "title,", "Title"] { XCTAssertThrowsError(try EventField.selection(invalid)) }
     }
 
@@ -85,6 +85,34 @@ final class CalendarOmniTests: XCTestCase {
         XCTAssertEqual(Set(event.keys), ["_ref", "notes", "location"])
         XCTAssertTrue(event["location"] is NSNull)
         XCTAssertTrue((event["_ref"] as! [String: Any])["occurrenceDate"] is NSNull)
+    }
+
+    func testOptInDuration() throws {
+        XCTAssertEqual(try EventField.selection("title,duration"), [.title, .duration])
+        XCTAssertFalse(try EventField.selection("all").contains(.duration))
+        let defaults = try JSONSerialization.jsonObject(with: OutputWriter.data(
+            EventOutput(command: "extract", zone: dates.zone, records: [record]), format: .json)) as! [String: Any]
+        XCTAssertNil((defaults["events"] as! [[String: Any]])[0]["duration"])
+        for (start, end, minutes) in [
+            ("2026-09-21T09:00:00+02:00", "2026-09-21T10:00:00+02:00", 60.0),
+            ("2026-09-21T23:45:00Z", "2026-09-22T00:15:30Z", 30.5),
+            ("2026-09-21T09:00:00Z", "2026-09-21T09:00:00Z", 0.0),
+            ("2026-03-29T01:30:00+01:00", "2026-03-29T03:30:00+02:00", 60.0),
+            ("2026-03-29", "2026-03-30", 1380.0),
+            ("2026-10-25", "2026-10-26", 1500.0),
+            ("2026-09-21", "2026-09-23", 2880.0)
+        ] {
+            let r = EventRecord(reference: ref, title: "Test", start: start, end: end, location: nil, attendees: [], notes: nil)
+            let output = EventOutput(command: "extract", zone: dates.zone, fields: [.duration], records: [r])
+            let json = try JSONSerialization.jsonObject(with: OutputWriter.data(output, format: .json)) as! [String: Any]
+            let row = (json["events"] as! [[String: Any]])[0]
+            XCTAssertEqual(Set(row.keys), Set(["_ref", "duration"]))
+            XCTAssertEqual(row["duration"] as? Double, minutes)
+            let csv = String(decoding: try OutputWriter.data(output, format: .csv), as: UTF8.self)
+            XCTAssertEqual(Double(csv.components(separatedBy: "\r\n")[1]), minutes)
+            if minutes == 60 { XCTAssertEqual(csv, "duration\r\n60\r\n") }
+        }
+        XCTAssertThrowsError(try input([], fields: ["duration"]))
     }
 
     func testCSVQuotingAndMultiline() throws {
@@ -104,7 +132,7 @@ final class CalendarOmniTests: XCTestCase {
     }
 
     func testRoundTripEverySelection() throws {
-        let fields = EventField.allCases
+        let fields = EventField.contentFields
         for mask in 1..<(1 << fields.count) {
             let selected = fields.enumerated().compactMap { (mask & (1 << $0.offset)) != 0 ? $0.element : nil }
             let output = EventOutput(command: "extract", zone: dates.zone, fields: selected, records: [record])
@@ -211,17 +239,79 @@ final class ReportTests: XCTestCase {
         let records = [event("Late\nline", "2026-09-20T09:00:00Z", "2026-09-20T10:00:00Z"),
                        event("Early", "2026-09-20T09:30:00+02:00", "2026-09-20T10:30:00+02:00"),
                        event("Day", "2026-09-20", "2026-09-21")]
-        let data = try ReportPeriod.today.data(records: records, config: config(), dates: dates)
+        let data = try ReportPeriod.today.data(records: records, simple: true, dates: dates)
         XCTAssertEqual(String(decoding: data, as: UTF8.self), "all-day -- all-day : Day\n09:30 -- 10:30 : Early\n11:00 -- 12:00 : Late line\n")
-        XCTAssertEqual(try ReportPeriod.tomorrow.data(records: [], config: config(), dates: dates), Data())
-        let full = try ReportPeriod.today.data(records: [records[1]], config: config("full"), dates: dates)
+        XCTAssertEqual(try ReportPeriod.tomorrow.data(records: [], simple: true, dates: dates), Data())
+        let full = try ReportPeriod.today.data(records: [records[1]], dates: dates)
         XCTAssertEqual(String(decoding: full, as: UTF8.self), "2026-09-20T09:30:00+02:00 -- 2026-09-20T10:30:00+02:00 : Early\n")
     }
-    func testWeeklyCSV() throws {
-        let record = event("Møde; title", "2026-01-20T07:30:00Z", "2026-01-20T08:30:00Z")
-        let data = try ReportPeriod.lastWeek.data(records: [record], config: config(), dates: dates)
-        XCTAssertEqual(String(decoding: data, as: UTF8.self), "title;start;end;notes\r\n\"Møde; title\";2026-01-20 08:30;2026-01-20 09:30;\"one;\"\"two\"\"\nthree\"\r\n")
-        let empty = try ReportPeriod.lastWeek.data(records: [], config: config(), dates: dates)
-        XCTAssertEqual(String(decoding: empty, as: UTF8.self), "title;start;end;notes\r\n")
+    func testTodayAttendeeNames() throws {
+        let base = event("Ethics questions", "2026-09-23T10:00:00+02:00", "2026-09-23T10:45:00+02:00")
+        for (names, suffix): ([String?], String) in [
+            ([], ""), ([nil, " \n"], ""),
+            (["Per Møldrup-Dalum"], ""),
+            (["  PER\tMØLDRUP-DALUM  ", "Per Hansen", "Diba Markus"], " med Per og Diba"),
+            (["Anders Falkenhard Røn"], " med Anders"),
+            (["Anders Røn", "Claus Johannesen"], " med Anders og Claus"),
+            (["Anders Røn", "Claus Johannesen", "Diba Markus"], " med Anders, Claus og Diba"),
+            (["  Anne-Marie Hansen", nil, "\nÅse\tJensen", ""], " med Anne-Marie og Åse"),
+            (["Anders Røn", "Anders Hansen"], " med Anders og Anders")
+        ] {
+            let record = EventRecord(reference: base.reference, title: base.title, start: base.start, end: base.end,
+                location: nil, attendees: names.map { Attendee(name: $0, url: "mailto:test@example.org") }, notes: nil)
+            let today = try ReportPeriod.today.data(records: [record], simple: true, dates: dates)
+            XCTAssertEqual(String(decoding: today, as: UTF8.self), "10:00 -- 10:45 : Ethics questions" + suffix + "\n")
+            let full = try ReportPeriod.today.data(records: [record], dates: dates)
+            XCTAssertEqual(String(decoding: full, as: UTF8.self), base.start + " -- " + base.end + " : Ethics questions" + suffix + "\n")
+            let tomorrow = try ReportPeriod.tomorrow.data(records: [record], simple: true, dates: dates)
+            XCTAssertEqual(String(decoding: tomorrow, as: UTF8.self), "10:00 -- 10:45 : Ethics questions\n")
+        }
+    }
+
+    func testTodayShortLocation() throws {
+        let cases: [(String?, String)] = [
+            (nil, ""), ("  ", ""),
+            ("3210-05.071 Mødelokal (20) AU Forskning (20)", "3210-05.071"),
+            ("  Microsoft   Teams\nJoin via link", "Microsoft Teams"),
+            ("Café ved søen", "Café ved søen"),
+            (String(repeating: "a", count: 50), String(repeating: "a", count: 39) + "…")
+        ]
+        for (location, expected) in cases {
+            let base = event("Ethics questions", "2026-09-23T10:00:00+02:00", "2026-09-23T10:45:00+02:00")
+            let record = EventRecord(reference: base.reference, title: base.title, start: base.start, end: base.end,
+                location: location, attendees: [Attendee(name: "Per Møldrup-Dalum", url: "mailto:self@example.org"),
+                    Attendee(name: "Diba Markus", url: "mailto:diba@example.org")], notes: nil)
+            let suffix = expected.isEmpty ? "" : " — " + expected
+            let output = try ReportPeriod.today.data(records: [record], simple: true, dates: dates)
+            XCTAssertEqual(String(decoding: output, as: UTF8.self), "10:00 -- 10:45 : Ethics questions med Diba" + suffix + "\n")
+            let tomorrow = try ReportPeriod.tomorrow.data(records: [record], simple: true, dates: dates)
+            XCTAssertEqual(String(decoding: tomorrow, as: UTF8.self), "10:00 -- 10:45 : Ethics questions\n")
+        }
+    }
+
+    func testWeeklyJSON() throws {
+        let timed = EventRecord(reference: EventReference(eventId: "hidden", calendarId: "a", isRecurring: false, occurrenceDate: nil),
+            title: "Møde; \"quoted\"\nline", start: "2026-01-20T07:30:00.123Z", end: "2026-01-20T08:30:00Z",
+            location: "3210-05.071", attendees: [Attendee(name: "Anders Røn", url: "mailto:a@example.org"),
+                Attendee(name: "Diba Markus", url: "mailto:b@example.org"), Attendee(name: nil, url: "mailto:c@example.org"),
+                Attendee(name: "  ", url: "mailto:d@example.org")], notes: "not included")
+        let day = event("All day", "2026-01-20", "2026-01-21")
+        let data = try ReportPeriod.lastWeek.data(records: [timed, day], simple: true, dates: dates)
+        let rows = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(Set(rows[0].keys), Set(["attendees", "location", "end", "start", "title"]))
+        XCTAssertEqual(rows[0]["start"] as? String, "2026-01-20")
+        XCTAssertEqual(rows[0]["end"] as? String, "2026-01-21")
+        XCTAssertTrue(rows[0]["location"] is NSNull)
+        XCTAssertEqual(rows[0]["attendees"] as? [String], [])
+        XCTAssertEqual(rows[1]["attendees"] as? [String], ["Anders Røn", "Diba Markus"])
+        XCTAssertEqual(rows[1]["title"] as? String, timed.title)
+        XCTAssertEqual(rows[1]["location"] as? String, timed.location)
+        XCTAssertEqual(rows[1]["start"] as? String, timed.start)
+        XCTAssertEqual(rows[1]["end"] as? String, timed.end)
+        XCTAssertEqual(Set(rows[1].keys), Set(rows[0].keys))
+        XCTAssertEqual(data, try ReportPeriod.lastWeek.data(records: [timed, day], dates: dates))
+        let empty = try ReportPeriod.lastWeek.data(records: [], simple: true, dates: dates)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: empty) as? [String], [])
     }
 }
