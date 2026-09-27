@@ -26,9 +26,9 @@ make clean           # Clean Debug/Release products; keep downloaded packages
 make help            # List targets and overrides
 ```
 
-Add `$HOME/bin` to your shell's PATH if needed. `make install` installs only the
-executable; it does not change your shell configuration or calendar config.
-Use `make uninstall` to remove the installed executable. The examples below
+Add `$HOME/bin` to your shell's PATH if needed. `make install` installs the executable
+and license notices; it does not change your shell configuration or calendar config.
+Use `make uninstall` to remove the installed executable and license files. The examples below
 assume `CalendarOmni` is on PATH.
 
 The install prefix defaults to your home directory. Override it or the bin
@@ -40,7 +40,9 @@ make install BINDIR="/custom/path/bin"    # exact destination directory
 ```
 
 `DESTDIR` optionally stages installation ahead of the absolute destination path.
-`COMPLETIONDIR` defaults to `~/.zsh/completion`. `BUILD_DIR` defaults to `build`,
+`LICENSEDIR` defaults to `$(PREFIX)/share/licenses/CalendarOmni` (normally
+`~/share/licenses/CalendarOmni`). `COMPLETIONDIR` defaults to `~/.zsh/completion`.
+`BUILD_DIR` defaults to `build`,
 and `CONFIGURATION` to `Release`. `make check` builds and runs CLI checks only.
 Older Ruby/Wolfram helper tests remain separate, as described in `VALIDATION.md`.
 
@@ -403,3 +405,15 @@ check uses help, version, invalid input, and empty updates only.
 See [VALIDATION.md](VALIDATION.md) for the actual checks run for this release and
 remaining live checks. [SKILLS.md](SKILLS.md) is the operating guide for LLMs;
 [DESIGN.md](DESIGN.md) and [PLAN.md](PLAN.md) retain design and verification detail.
+
+## License
+
+CalendarOmni source, scripts, and documentation are licensed under the
+[MIT License](LICENSE). Copyright © 2026 Per Møldrup-Dalum.
+
+Dependencies retain their own licenses: Swift Argument Parser uses Apache 2.0
+with the Runtime Library Exception; Yams and its bundled LibYAML use MIT.
+Their notices are preserved in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt).
+`make install` installs both license files under `$(PREFIX)/share/licenses/CalendarOmni`
+by default; override `LICENSEDIR` if needed. Include both files when distributing
+the built executable.

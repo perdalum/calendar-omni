@@ -4,6 +4,7 @@
 
 PREFIX ?= $(HOME)
 BINDIR ?= $(PREFIX)/bin
+LICENSEDIR ?= $(PREFIX)/share/licenses/CalendarOmni
 DESTDIR ?=
 COMPLETIONDIR ?= $(HOME)/.zsh/completion
 BUILD_DIR ?= build
@@ -35,9 +36,12 @@ check: build
 install: build
 	install -d "$(DESTDIR)$(BINDIR)"
 	install -m 755 "$(BINARY)" "$(DESTDIR)$(BINDIR)/CalendarOmni"
+	install -d "$(DESTDIR)$(LICENSEDIR)"
+	install -m 644 LICENSE THIRD_PARTY_LICENSES.txt "$(DESTDIR)$(LICENSEDIR)/"
 
 uninstall:
 	rm -f "$(DESTDIR)$(BINDIR)/CalendarOmni"
+	rm -f "$(DESTDIR)$(LICENSEDIR)/LICENSE" "$(DESTDIR)$(LICENSEDIR)/THIRD_PARTY_LICENSES.txt"
 
 # Separate from install: no shell configuration or completion changes by default.
 completions: build
@@ -57,5 +61,5 @@ help:
 	@echo 'make uninstall       Remove the executable from the install destination'
 	@echo 'make completions     Build and install zsh completion definitions'
 	@echo 'make clean           Clean Debug/Release products, retain package sources'
-	@echo 'Overrides: PREFIX, BINDIR, DESTDIR, COMPLETIONDIR, BUILD_DIR, CONFIGURATION'
+	@echo 'Overrides: PREFIX, BINDIR, LICENSEDIR, DESTDIR, COMPLETIONDIR, BUILD_DIR, CONFIGURATION'
 	@echo 'Example: make install PREFIX="$$HOME/.local"'

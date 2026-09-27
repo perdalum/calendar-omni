@@ -340,3 +340,17 @@ Updated existing expectations and docs; `make test` passed (22 Swift tests and
 - Read-only live checks passed for 76 events: numeric duration agrees with elapsed
   timestamp differences, duration-only JSON/CSV agree, and default/all omit it.
 - Regenerated installed completion help. No calendar or user-config writes.
+
+## MIT licensing — 2026-09-27
+
+- Added root MIT LICENSE with Copyright (c) 2026 Per Møldrup-Dalum, plus
+  THIRD_PARTY_LICENSES.txt preserving Swift Argument Parser, Yams, and LibYAML
+  notices. Updated README, SKILLS, changelog, Xcode file references, and embedded
+  copyright metadata.
+- Makefile install/uninstall now handles both license files under LICENSEDIR,
+  defaulting to $(PREFIX)/share/licenses/CalendarOmni; DESTDIR is respected.
+- Info.plist and Xcode project passed plutil validation. Release build and a
+  temporary-prefix install/uninstall passed. Installed license files matched the
+  originals byte for byte; the installed executable reported 1.1.0.
+- git diff --check passed. Full tests were not rerun for this licensing/metadata
+  change. No user installation, calendar data, or Git history was modified.

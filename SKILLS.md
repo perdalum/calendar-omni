@@ -183,3 +183,10 @@ Use `make build` (Release), `make test` (Swift tests plus CLI checks), or
 for another install location. `make completions` separately refreshes zsh
 completion; install does not edit shell or calendar config. `make clean` uses
 Xcode to clean Debug/Release products while retaining downloaded packages.
+
+## Licensing
+
+CalendarOmni uses the root MIT `LICENSE` (Copyright 2026 Per Møldrup-Dalum).
+Keep `LICENSE` and `THIRD_PARTY_LICENSES.txt` with redistributions. Dependencies
+retain their upstream licenses; do not replace their notices. `make install`
+copies both files to `$(PREFIX)/share/licenses/CalendarOmni` (override LICENSEDIR).

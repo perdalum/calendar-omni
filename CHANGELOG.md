@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- License CalendarOmni under MIT (Copyright 2026 Per Møldrup-Dalum). Include
+  dependency notices, Xcode copyright metadata, and installed license files.
+
 - Add the opt-in extraction field `duration`: elapsed minutes as a number in JSON
   and CSV, preserving fractions. Defaults and `--fields all` remain unchanged.
 
